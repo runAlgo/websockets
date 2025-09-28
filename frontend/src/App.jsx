@@ -29,9 +29,30 @@ const App = () => {
     setShowNamePopup(false);
   }
   // SEND MESSAGE FUNCTION
-  function sendMessage() {}
+  function sendMessage() {
+    const t = text.trim();
+    if(!t) return;
+
+    // USER MESSAGE
+    const msg = {
+      id: Date.now(),
+      sender: userName,
+      text: t,
+      ts: Date.now(),
+    }
+    setMessages((m) => [...m, msg]);
+    
+    // emit
+
+    setText("");
+  }
   // HANDLE ENTER KEY TO SEND MESSAGE
-  function handleKeyDown() {}
+  function handleKeyDown(e) {
+    if(e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault(); // stop new line
+      sendMessage();
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-100 p-4 font-inter">
