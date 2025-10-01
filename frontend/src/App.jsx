@@ -1,14 +1,70 @@
 import React, { useRef, useState } from "react";
+import { useEffect } from "react";
+import { connectWS } from "./ws";
 
 const App = () => {
+  const socket = useRef(null);
   const timer = useRef(null);
   const [showNamePopup, setShowNamePopup] = useState(true);
-  const [inputName, setInputName] = useState();
+  const [inputName, setInputName] = useState("");
   const [userName, setUserName] = useState("");
   const [typers, setTypers] = useState([]);
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+
+  useEffect(() => {
+    socket.current = connectWS();
+
+    socket.current.on("connect", () => {
+      socket.current.on("roomNotice", (userName) => {
+        console.log(`${userName} joined the group`);
+      });
+
+      socket.current.on("chatMessage", (msg) => {
+        // push to existing messages
+        console.log("msg:  ", msg);
+        setMessages((prev) => [...prev, msg]);
+      });
+
+      socket.current.on("typing", (userName) => {
+        setTypers((prev) => {
+          const isExist = prev.find((typer) => typer === userName);
+          if (!isExist) {
+            return [...prev, userName];
+          }
+
+          return prev;
+        });
+      });
+
+      socket.current.on("stopTyping", (userName) => {
+        setTypers((prev) => prev.filter((typer) => typer !== userName));
+      });
+    });
+
+    return () => {
+      socket.current.off('roomNotice');
+      socket.current.off('chatMessage');
+      socket.current.off('typing');
+      socket.current.off('stopTyping');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (text) {
+      socket.current.emit("typing", userName);
+      clearTimeout(timer.current);
+    }
+
+    timer.current = setTimeout(() => {
+      socket.current.emit("stopTyping", userName);
+    }, 1000);
+
+    return () => {
+      clearTimeout(timer.current);
+    };
+  }, [text, userName]);
 
   // FORMAT TIMESTAMP TO HH:MM FOR MESSAGES
   function formatTime(ts) {
@@ -21,9 +77,10 @@ const App = () => {
   function handleNameSubmit(e) {
     e.preventDefault();
     const trimmed = inputName.trim();
-    if(!trimmed) return;
+    if (!trimmed) return;
 
     // join room
+    socket.current.emit("joinRoom", trimmed);
 
     setUserName(trimmed);
     setShowNamePopup(false);
@@ -31,7 +88,7 @@ const App = () => {
   // SEND MESSAGE FUNCTION
   function sendMessage() {
     const t = text.trim();
-    if(!t) return;
+    if (!t) return;
 
     // USER MESSAGE
     const msg = {
@@ -39,16 +96,17 @@ const App = () => {
       sender: userName,
       text: t,
       ts: Date.now(),
-    }
+    };
     setMessages((m) => [...m, msg]);
-    
+
     // emit
+    socket.current.emit("chatMessage", msg);
 
     setText("");
   }
   // HANDLE ENTER KEY TO SEND MESSAGE
   function handleKeyDown(e) {
-    if(e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault(); // stop new line
       sendMessage();
     }
