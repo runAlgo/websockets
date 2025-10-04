@@ -190,7 +190,9 @@ const App = () => {
                       {m.text}
                     </div>
                     <div className="flex justify-between items-center mt-1 gap-16">
+                      {!mine && (
                       <div className="text-[11px] font-bold">{m.sender}</div>
+                      )}
                       <div className="text-[11px] text-gray-500 text-right">
                         {formatTime(m.ts)}
                       </div>
